@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIDI to MakeCode Arcade Song Converter v1.1</title>
+    <title>MIDI to MakeCode Arcade Song Converter v1.2</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -11,6 +11,542 @@
             max-width: 900px;
             margin: 0 auto;
             padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #00d9ff; text-align: center; }
+        h2 { color: #00d9ff; font-size: 16px; margin: 0 0 10px 0; }
+        .drop-zone {
+            border: 3px dashed #00d9ff;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background: rgba(0, 217, 255, 0.05);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            background: rgba(0, 217, 255, 0.15);
+            border-color: #ff6b6b;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .control-group {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #00d9ff;
+            font-weight: 500;
+        }
+        select, input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #eee;
+            font-size: 14px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #eee;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .output-area {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .output-label {
+            color: #00d9ff;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .hex-output, .code-output {
+            background: #0a0a15;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+        .code-output { color: #7dff7d; }
+        .hex-output { color: #ffb86c; }
+        button {
+            background: #00d9ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover { background: #00b8d9; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        button:disabled { background: #555; cursor: not-allowed; transform: none; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .info-text { color: #888; font-size: 13px; margin-top: 10px; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stat {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value { font-size: 20px; font-weight: bold; color: #00d9ff; }
+        .stat-label { font-size: 11px; color: #888; text-transform: uppercase; }
+        #file-input { display: none; }
+        .hidden { display: none; }
+        .error { color: #ff6b6b; background: rgba(255,107,107,0.1); padding: 15px; border-radius: 8px; margin: 10px 0; }
+        .player-section { background: #16213e; border-radius: 12px; padding: 20px; margin: 20px 0; }
+        .player-controls { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .play-btn { background: #4CAF50; }
+        .play-btn:hover { background: #45a049; }
+        .stop-btn { background: #f44336; }
+        .stop-btn:hover { background: #da190b; }
+        .progress-bar { flex: 1; min-width: 200px; height: 8px; background: #0f3460; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #00d9ff; width: 0%; transition: width 0.1s linear; }
+        .time-display { font-family: monospace; color: #888; min-width: 100px; }
+        .track-section { background: #16213e; border-radius: 12px; padding: 20px; margin: 20px 0; }
+        .track-list { max-height: 300px; overflow-y: auto; }
+        .track-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #0f3460; border-radius: 6px; margin-bottom: 8px; }
+        .track-item:hover { background: #1a4a7a; }
+        .track-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .track-info { flex: 1; }
+        .track-name { font-weight: 600; color: #eee; }
+        .track-details { font-size: 12px; color: #888; }
+        .track-preview { padding: 6px 12px; font-size: 12px; }
+        .channel-badge { display: inline-block; background: #00d9ff; color: #1a1a2e; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-right: 5px; }
+        .note-range { color: #7dff7d; }
+        .lyrics-section { background: #16213e; border-radius: 12px; padding: 20px; margin: 20px 0; }
+        .syllable-count { display: inline-block; background: #0f3460; padding: 4px 12px; border-radius: 4px; margin-left: 10px; font-size: 13px; }
+        .syllable-match { color: #7dff7d; }
+        .syllable-mismatch { color: #ff6b6b; }
+        .lyrics-preview { background: #0a0a15; padding: 15px; border-radius: 8px; margin-top: 15px; max-height: 150px; overflow-y: auto; }
+        .lyrics-preview-item { display: inline-block; padding: 4px 8px; margin: 2px; background: #0f3460; border-radius: 4px; font-size: 12px; }
+        .lyrics-preview-item .note { color: #00d9ff; font-size: 10px; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; }
+        .checkbox-group label { margin: 0; color: #eee; font-weight: normal; }
+    </style>
+</head>
+<body>
+    <h1>🎵 MIDI → MakeCode Arcade</h1>
+    
+    <div class="drop-zone" id="drop-zone">
+        <p>📁 Drag & drop a MIDI file here</p>
+        <p style="color: #888; font-size: 14px;">or click to select</p>
+        <input type="file" id="file-input" accept=".mid,.midi">
+    </div>
+
+    <div id="error-box" class="error hidden"></div>
+
+    <div id="player-section" class="player-section hidden">
+        <h2>🎧 Preview MIDI</h2>
+        <div class="player-controls">
+            <button id="play-btn" class="play-btn" onclick="togglePlayback()">▶ Play</button>
+            <button id="stop-btn" class="stop-btn" onclick="stopPlayback()">■ Stop</button>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+            <span class="time-display" id="time-display">0:00 / 0:00</span>
+        </div>
+    </div>
+
+    <div id="track-section" class="track-section hidden">
+        <h2>🎼 Select Tracks/Channels</h2>
+        <p class="info-text">Choose which tracks to include in the conversion. Uncheck tracks to isolate melodies.</p>
+        <div class="btn-group" style="margin: 10px 0;">
+            <button onclick="selectAllTracks()">Select All</button>
+            <button onclick="selectNoTracks()">Select None</button>
+        </div>
+        <div class="track-list" id="track-list"></div>
+    </div>
+
+    <div id="lyrics-section" class="lyrics-section hidden">
+        <h2>🗣️ Animalese Lyrics (Optional)</h2>
+        <p class="info-text">Enter lyrics as syllables separated by spaces. Each syllable syncs to a note (1:1 mapping).</p>
+        <div class="control-group" style="margin-bottom: 15px;">
+            <label for="lyrics-track">Sync lyrics to track:</label>
+            <select id="lyrics-track" onchange="convertMidi()">
+                <option value="-1">-- Select a track --</option>
+            </select>
+        </div>
+        <textarea id="lyrics-input" placeholder="Dai sy Dai sy give me your an swer do"></textarea>
+        <div style="margin-top: 10px;">
+            <span class="syllable-count" id="syllable-count">0 syllables</span>
+            <span class="syllable-count" id="note-count-display">0 notes</span>
+        </div>
+        <div class="checkbox-group">
+            <input type="checkbox" id="include-lyrics" checked>
+            <label for="include-lyrics">Generate lyrics code (requires arcade-text extension)</label>
+        </div>
+        <div id="lyrics-preview" class="lyrics-preview hidden"></div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="divisor">Tempo Divisor</label>
+            <select id="divisor">
+                <option value="1">1x (Original)</option>
+                <option value="2">2x (Longer songs)</option>
+                <option value="4">4x (Much longer)</option>
+                <option value="8">8x (Very long)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="octave">Octave</label>
+            <select id="octave">
+                <option value="auto">Auto-detect</option>
+                <option value="4">Octave 4 (Low)</option>
+                <option value="5" selected>Octave 5 (Middle C)</option>
+                <option value="6">Octave 6 (High)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="condense">Note Range</label>
+            <select id="condense">
+                <option value="none">Original</option>
+                <option value="4">Condense to 4 octaves</option>
+                <option value="3">Condense to 3 octaves</option>
+                <option value="2">Condense to 2 octaves</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="output-section" class="hidden">
+        <div class="stats" id="stats"></div>
+        <div class="output-area">
+            <div class="output-label">📝 MakeCode TypeScript Code</div>
+            <div class="code-output" id="code-output"></div>
+            <div class="btn-group">
+                <button onclick="copyCode()">📋 Copy Code</button>
+                <button onclick="downloadCode()">💾 Download .ts</button>
+            </div>
+        </div>
+        <div class="output-area">
+            <div class="output-label">🔢 Raw Hex Data</div>
+            <div class="hex-output" id="hex-output"></div>
+            <div class="btn-group"><button onclick="copyHex()">📋 Copy Hex</button></div>
+        </div>
+        <p class="info-text"><strong>For lyrics:</strong> Add the <code>arcade-text</code> extension first.</p>
+    </div>
+
+    <script>
+    class MidiParser {
+        constructor(arrayBuffer) { 
+            this.data = new DataView(arrayBuffer); 
+            this.pos = 0; 
+            this.length = arrayBuffer.byteLength;
+            console.log('MIDI Parser: buffer size', this.length, 'bytes');
+        }
+        readUint8() { 
+            if (this.pos >= this.length) throw new Error('Unexpected end of file at pos ' + this.pos);
+            return this.data.getUint8(this.pos++); 
+        }
+        readUint16() { const v = this.data.getUint16(this.pos); this.pos += 2; return v; }
+        readUint32() { const v = this.data.getUint32(this.pos); this.pos += 4; return v; }
+        readVarInt() { let v = 0, b, safety = 0; do { b = this.readUint8(); v = (v << 7) | (b & 0x7F); if (++safety > 4) break; } while (b & 0x80); return v; }
+        readString(n) { let s = ''; for (let i = 0; i < n; i++) s += String.fromCharCode(this.readUint8()); return s; }
+        parse() {
+            const header = this.readString(4);
+            if (header !== 'MThd') throw new Error('Invalid MIDI header: "' + header + '"');
+            this.readUint32(); 
+            const format = this.readUint16(), numTracks = this.readUint16(), timeDivision = this.readUint16();
+            console.log('MIDI: format', format, 'tracks', numTracks, 'timeDivision', timeDivision);
+            const tracks = [];
+            for (let t = 0; t < numTracks; t++) {
+                const chunkPos = this.pos;
+                const chunk = this.readString(4);
+                if (chunk !== 'MTrk') throw new Error('Invalid track chunk "' + chunk + '" at pos ' + chunkPos);
+                const trackLength = this.readUint32();
+                const trackEnd = this.pos + trackLength;
+                console.log('Track', t, 'at pos', chunkPos, 'length', trackLength, 'ends at', trackEnd);
+                const events = [];
+                let runningStatus = 0, trackName = 'Track ' + (t + 1);
+                while (this.pos < trackEnd) {
+                    const deltaTime = this.readVarInt();
+                    let status = this.readUint8();
+                    if (status < 0x80) { this.pos--; status = runningStatus; } else runningStatus = status;
+                    const eventType = status & 0xF0, channel = status & 0x0F;
+                    if (status === 0xFF) {
+                        const metaType = this.readUint8(), len = this.readVarInt(), data = [];
+                        for (let i = 0; i < len; i++) data.push(this.readUint8());
+                        if (metaType === 0x03) trackName = String.fromCharCode(...data);
+                        events.push({ deltaTime, type: 'meta', metaType, data });
+                    } else if (status === 0xF0 || status === 0xF7) { this.pos += this.readVarInt(); }
+                    else if (eventType === 0x80) { events.push({ deltaTime, type: 'noteOff', channel, note: this.readUint8(), velocity: this.readUint8() }); }
+                    else if (eventType === 0x90) { events.push({ deltaTime, type: 'noteOn', channel, note: this.readUint8(), velocity: this.readUint8() }); }
+                    else if (eventType === 0xA0 || eventType === 0xB0 || eventType === 0xE0) { this.pos += 2; }
+                    else if (eventType === 0xC0 || eventType === 0xD0) { this.pos += 1; }
+                }
+                console.log('Track', t, '"' + trackName + '"', events.length, 'events, ended at pos', this.pos);
+                tracks.push({ events, name: trackName, index: t });
+            }
+            return { format, numTracks, timeDivision, tracks };
+        }
+    }
+
+    let audioContext = null, isPlaying = false, playbackTimeout = null, scheduledNotes = [], playbackStartTime = 0, totalDuration = 0, progressInterval = null;
+    function initAudio() { if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)(); if (audioContext.state === 'suspended') audioContext.resume(); }
+    function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+    function playNote(freq, start, dur, vel = 100) {
+        const osc = audioContext.createOscillator(), gain = audioContext.createGain();
+        osc.type = 'triangle'; osc.frequency.value = freq;
+        const vol = (vel / 127) * 0.3;
+        gain.gain.setValueAtTime(0, start); gain.gain.linearRampToValueAtTime(vol, start + 0.01);
+        gain.gain.linearRampToValueAtTime(vol * 0.7, start + dur * 0.7); gain.gain.linearRampToValueAtTime(0, start + dur);
+        osc.connect(gain); gain.connect(audioContext.destination); osc.start(start); osc.stop(start + dur + 0.1);
+        scheduledNotes.push({ osc, gain });
+    }
+    function togglePlayback() { isPlaying ? stopPlayback() : startPlayback(); }
+    function startPlayback() {
+        if (!lastMidiData) return; initAudio(); stopPlayback(); isPlaying = true;
+        document.getElementById('play-btn').textContent = '⏸ Pause';
+        const ticksPerBeat = lastMidiData.timeDivision || 480;
+        let bpm = 120;
+        for (const track of lastMidiData.tracks) for (const e of track.events) if (e.type === 'meta' && e.metaType === 0x51 && e.data.length >= 3) { bpm = Math.round(60000000 / ((e.data[0] << 16) | (e.data[1] << 8) | e.data[2])); break; }
+        const secPerTick = 60 / (bpm * ticksPerBeat); playbackStartTime = audioContext.currentTime;
+        let maxTime = 0;
+        for (const tc of getSelectedTracks()) {
+            const track = lastMidiData.tracks[tc.trackIndex]; let tick = 0; const active = {};
+            for (const e of track.events) {
+                tick += e.deltaTime || 0; const time = tick * secPerTick;
+                if (e.type === 'noteOn' && e.velocity > 0 && tc.channels.includes(e.channel)) active[e.note] = { time, velocity: e.velocity };
+                else if ((e.type === 'noteOff' || (e.type === 'noteOn' && e.velocity === 0)) && active[e.note]) {
+                    playNote(midiToFreq(e.note), playbackStartTime + active[e.note].time, Math.max(0.05, time - active[e.note].time), active[e.note].velocity);
+                    delete active[e.note]; maxTime = Math.max(maxTime, time);
+                }
+            }
+        }
+        totalDuration = maxTime; progressInterval = setInterval(updateProgress, 100);
+        playbackTimeout = setTimeout(stopPlayback, (totalDuration + 0.5) * 1000);
+    }
+    function stopPlayback() {
+        isPlaying = false; document.getElementById('play-btn').textContent = '▶ Play';
+        clearTimeout(playbackTimeout); clearInterval(progressInterval);
+        for (const n of scheduledNotes) try { n.osc.stop(); } catch (e) {}
+        scheduledNotes = []; document.getElementById('progress-fill').style.width = '0%'; updateTimeDisplay(0, totalDuration);
+    }
+    function updateProgress() { if (!isPlaying || !audioContext) return; const el = audioContext.currentTime - playbackStartTime; document.getElementById('progress-fill').style.width = Math.min(100, (el / totalDuration) * 100) + '%'; updateTimeDisplay(el, totalDuration); }
+    function updateTimeDisplay(c, t) { const f = s => `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`; document.getElementById('time-display').textContent = `${f(c)} / ${f(t)}`; }
+
+    let trackChannelMap = [];
+    function analyzeTrackChannels(midi) {
+        trackChannelMap = [];
+        for (let t = 0; t < midi.tracks.length; t++) {
+            const track = midi.tracks[t], chMap = new Map();
+            for (const e of track.events) if (e.type === 'noteOn' && e.velocity > 0) {
+                if (!chMap.has(e.channel)) chMap.set(e.channel, { noteCount: 0, minNote: 127, maxNote: 0 });
+                const info = chMap.get(e.channel); info.noteCount++; info.minNote = Math.min(info.minNote, e.note); info.maxNote = Math.max(info.maxNote, e.note);
+            }
+            for (const [ch, info] of chMap) if (info.noteCount > 0) trackChannelMap.push({ trackIndex: t, channel: ch, channels: [ch], name: track.name || `Track ${t+1}`, noteCount: info.noteCount, minNote: info.minNote, maxNote: info.maxNote });
+        }
+        return trackChannelMap;
+    }
+    function midiNoteToName(m) { return ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][m % 12] + (Math.floor(m / 12) - 1); }
+    function renderTrackList() {
+        const container = document.getElementById('track-list'), dropdown = document.getElementById('lyrics-track');
+        container.innerHTML = ''; dropdown.innerHTML = '<option value="-1">-- Select a track --</option>';
+        if (trackChannelMap.length === 0) { container.innerHTML = '<p style="color:#888;">No note data found.</p>'; return; }
+        for (let i = 0; i < trackChannelMap.length; i++) {
+            const tc = trackChannelMap[i], div = document.createElement('div'); div.className = 'track-item';
+            div.innerHTML = `<input type="checkbox" id="track-${i}" checked onchange="convertMidi()"><div class="track-info"><div class="track-name">${tc.name}</div><div class="track-details"><span class="channel-badge">Ch ${tc.channel+1}</span><span>${tc.noteCount} notes</span> · <span class="note-range">${midiNoteToName(tc.minNote)} - ${midiNoteToName(tc.maxNote)}</span></div></div><button class="track-preview" onclick="previewTrack(${i})">▶ Preview</button>`;
+            container.appendChild(div);
+            const opt = document.createElement('option'); opt.value = i; opt.textContent = `${tc.name} (Ch ${tc.channel+1}) - ${tc.noteCount} notes`; dropdown.appendChild(opt);
+        }
+    }
+    function getSelectedTracks() { return trackChannelMap.filter((_, i) => document.getElementById(`track-${i}`)?.checked); }
+    function selectAllTracks() { trackChannelMap.forEach((_, i) => { const cb = document.getElementById(`track-${i}`); if (cb) cb.checked = true; }); convertMidi(); }
+    function selectNoTracks() { trackChannelMap.forEach((_, i) => { const cb = document.getElementById(`track-${i}`); if (cb) cb.checked = false; }); convertMidi(); }
+    function previewTrack(idx) {
+        if (!lastMidiData) return; initAudio(); stopPlayback();
+        const tc = trackChannelMap[idx], track = lastMidiData.tracks[tc.trackIndex], ticksPerBeat = lastMidiData.timeDivision || 480;
+        let bpm = 120;
+        for (const t of lastMidiData.tracks) for (const e of t.events) if (e.type === 'meta' && e.metaType === 0x51 && e.data.length >= 3) { bpm = Math.round(60000000 / ((e.data[0] << 16) | (e.data[1] << 8) | e.data[2])); break; }
+        const secPerTick = 60 / (bpm * ticksPerBeat), startTime = audioContext.currentTime;
+        let tick = 0, maxTime = 0; const active = {};
+        for (const e of track.events) {
+            tick += e.deltaTime || 0; const time = tick * secPerTick; if (time > 10) break;
+            if (e.type === 'noteOn' && e.velocity > 0 && e.channel === tc.channel) active[e.note] = { time, velocity: e.velocity };
+            else if ((e.type === 'noteOff' || (e.type === 'noteOn' && e.velocity === 0)) && e.channel === tc.channel && active[e.note]) {
+                playNote(midiToFreq(e.note), startTime + active[e.note].time, Math.max(0.05, time - active[e.note].time), active[e.note].velocity);
+                delete active[e.note]; maxTime = Math.max(maxTime, time);
+            }
+        }
+        isPlaying = true; document.getElementById('play-btn').textContent = '⏸ Pause';
+        totalDuration = Math.min(maxTime, 10); playbackStartTime = startTime;
+        progressInterval = setInterval(updateProgress, 100); playbackTimeout = setTimeout(stopPlayback, (totalDuration + 0.5) * 1000);
+    }
+
+    let lastNoteTimings = [];
+    function parseLyrics(t) { return t.trim() ? t.trim().split(/\s+/).filter(s => s.length) : []; }
+    function getLyricsTimings(midi, trackIdx, divisor) {
+        if (trackIdx < 0 || trackIdx >= trackChannelMap.length) return [];
+        const tc = trackChannelMap[trackIdx], track = midi.tracks[tc.trackIndex], ticksPerBeat = midi.timeDivision || 480;
+        let bpm = 120;
+        for (const t of midi.tracks) for (const e of t.events) if (e.type === 'meta' && e.metaType === 0x51 && e.data.length >= 3) { bpm = Math.round(60000000 / ((e.data[0] << 16) | (e.data[1] << 8) | e.data[2])); break; }
+        const timings = [], active = {}; let tick = 0;
+        for (const e of track.events) {
+            tick += e.deltaTime || 0;
+            if (e.type === 'noteOn' && e.velocity > 0 && e.channel === tc.channel) active[e.note] = { timeMs: Math.round((tick / ticksPerBeat) * (60000 / bpm) / divisor), note: e.note };
+            if ((e.type === 'noteOff' || (e.type === 'noteOn' && e.velocity === 0)) && e.channel === tc.channel && active[e.note]) { timings.push({ timeMs: active[e.note].timeMs, note: active[e.note].note }); delete active[e.note]; }
+        }
+        return timings.sort((a, b) => a.timeMs - b.timeMs);
+    }
+    function updateLyricsPreview() {
+        const lyrics = parseLyrics(document.getElementById('lyrics-input').value);
+        const sylEl = document.getElementById('syllable-count'), noteEl = document.getElementById('note-count-display'), previewEl = document.getElementById('lyrics-preview');
+        sylEl.textContent = `${lyrics.length} syllables`; noteEl.textContent = `${lastNoteTimings.length} notes`;
+        if (lyrics.length > 0 && lastNoteTimings.length > 0) {
+            sylEl.className = `syllable-count ${lyrics.length === lastNoteTimings.length ? 'syllable-match' : 'syllable-mismatch'}`;
+            previewEl.classList.remove('hidden');
+            let html = ''; const max = Math.max(lyrics.length, lastNoteTimings.length);
+            for (let i = 0; i < Math.min(max, 50); i++) html += `<span class="lyrics-preview-item">${lyrics[i] || '—'} <span class="note">${lastNoteTimings[i] ? midiNoteToName(lastNoteTimings[i].note) : '—'}</span></span>`;
+            if (max > 50) html += `<span class="lyrics-preview-item">... (${max - 50} more)</span>`;
+            previewEl.innerHTML = html;
+        } else { sylEl.className = 'syllable-count'; previewEl.classList.add('hidden'); }
+    }
+
+    function encode16bit(v) { return [v & 0xFF, (v >> 8) & 0xFF]; }
+    function encodeInstrument(p) { const d = [p.waveShape || 1]; d.push(...encode16bit(p.attack || 500), ...encode16bit(p.decay || 100), ...encode16bit(p.sustain || 255), ...encode16bit(p.release || 500), 0, 4, 0, 0); for (let i = 0; i < 11; i++) d.push(0); d.push(p.octave || 5, 0, 0, 4); return d; }
+    function encodeNoteEvent(e, oct) { const d = [...encode16bit(e.startTick), ...encode16bit(e.endTick), e.notes.length], off = (oct - 2) * 12; for (const n of e.notes) d.push((n - off + 1) & 0x3F); return d; }
+    function encodeTrack(t) { const d = [t.id, 0x00], inst = encodeInstrument(t.instrument); d.push(...encode16bit(inst.length), ...inst); t.notes.sort((a, b) => a.startTick - b.startTick); d.push(...encode16bit(t.notes.reduce((s, n) => s + 5 + n.notes.length, 0))); for (const n of t.notes) d.push(...encodeNoteEvent(n, t.instrument.octave)); return d; }
+    function encodeSong(s) { const d = [0x00, ...encode16bit(s.bpm), s.beatsPerMeasure, s.ticksPerBeat, Math.min(s.measures, 255), s.tracks.length]; for (const t of s.tracks) d.push(...encodeTrack(t)); return d; }
+    function toHexString(d) { return d.map(b => b.toString(16).padStart(2, '0')).join(''); }
+    function condenseNote(n, min, max) { while (n < min) n += 12; while (n > max) n -= 12; return n; }
+    function midiToSong(midi, divisor, octaveOverride, condenseRange, selectedTracks) {
+        const preset = { waveShape: 1, octave: 5, attack: 10, decay: 100, sustain: 500, release: 100 };
+        const ticksPerBeat = midi.timeDivision || 480, mcTicksPerBeat = 8;
+        let bpm = 120, totalTicks = 0; const notes = [], active = {};
+        for (const tc of selectedTracks) {
+            const track = midi.tracks[tc.trackIndex]; let tick = 0;
+            for (const e of track.events) {
+                tick += e.deltaTime || 0;
+                if (e.type === 'meta' && e.metaType === 0x51 && e.data.length >= 3) bpm = Math.round(60000000 / ((e.data[0] << 16) | (e.data[1] << 8) | e.data[2]));
+                if (e.type === 'noteOn' && e.velocity > 0 && tc.channels.includes(e.channel)) active[`${tc.trackIndex}-${tc.channel}-${e.note}`] = { mcTick: Math.floor((tick / ticksPerBeat) * mcTicksPerBeat / divisor), note: e.note };
+                if ((e.type === 'noteOff' || (e.type === 'noteOn' && e.velocity === 0)) && tc.channels.includes(e.channel)) {
+                    const k = `${tc.trackIndex}-${tc.channel}-${e.note}`;
+                    if (active[k]) {
+                        const start = active[k], mcTick = Math.floor((tick / ticksPerBeat) * mcTicksPerBeat / divisor); delete active[k];
+                        if (mcTick > start.mcTick) {
+                            let fn = e.note;
+                            if (condenseRange !== 'none') { const r = { 4: { min: 36, max: 83 }, 3: { min: 48, max: 83 }, 2: { min: 60, max: 83 } }[parseInt(condenseRange)]; fn = condenseNote(e.note, r.min, r.max); }
+                            notes.push({ notes: [fn], startTick: start.mcTick, endTick: mcTick });
+                        }
+                    }
+                }
+                totalTicks = Math.max(totalTicks, tick);
+            }
+        }
+        const measures = Math.min(Math.ceil((totalTicks / ticksPerBeat) / divisor / 4) + 1, 255);
+        let octave = 5;
+        if (octaveOverride && octaveOverride !== 'auto') octave = parseInt(octaveOverride);
+        else if (notes.length > 0) { const avg = notes.flatMap(e => e.notes).reduce((a, b) => a + b, 0) / notes.flatMap(e => e.notes).length; octave = avg < 48 ? 4 : avg > 84 ? 6 : 5; }
+        preset.octave = octave;
+        let minNote = 127, maxNote = 0; for (const e of notes) for (const n of e.notes) { minNote = Math.min(minNote, n); maxNote = Math.max(maxNote, n); }
+        return { bpm: Math.min(Math.max(bpm, 20), 500), beatsPerMeasure: 4, ticksPerBeat: mcTicksPerBeat, measures, tracks: [{ id: 0, instrument: preset, notes }], stats: { bpm: Math.min(Math.max(bpm, 20), 500), measures, noteCount: notes.length, octave, minNote, maxNote } };
+    }
+
+    function generateCodeWithLyrics(hex, lyrics, timings) {
+        const syls = parseLyrics(lyrics);
+        if (!document.getElementById('include-lyrics').checked || syls.length === 0) return `music.play(music.createSong(hex\`${hex}\`), music.PlaybackMode.UntilDone)`;
+        let code = `// Animalese Singing - MIDI to MakeCode Arcade\n// Requires: arcade-text extension\n\nlet lyricSprite = textsprite.create("", 0, 1)\nlyricSprite.setOutline(1, 15)\nlyricSprite.setMaxFontHeight(12)\nlyricSprite.x = 80\nlyricSprite.y = 100\n\nmusic.play(music.createSong(hex\`${hex}\`), music.PlaybackMode.InBackground)\n\ncontrol.runInParallel(function() {\n`;
+        let lastTime = 0; const max = Math.min(syls.length, timings.length);
+        for (let i = 0; i < max; i++) { const delay = timings[i].timeMs - lastTime; if (delay > 0) code += `    pause(${delay})\n`; code += `    lyricSprite.setText("${syls[i].replace(/"/g, '\\"')}")\n`; lastTime = timings[i].timeMs; }
+        code += `    pause(500)\n    lyricSprite.setText("")\n})\n`; return code;
+    }
+
+    const dropZone = document.getElementById('drop-zone'), fileInput = document.getElementById('file-input');
+    let currentHex = '', currentCode = '', lastMidiData = null, lastFileName = '';
+    function showError(m) { document.getElementById('error-box').textContent = '❌ ' + m; document.getElementById('error-box').classList.remove('hidden'); }
+    function hideError() { document.getElementById('error-box').classList.add('hidden'); }
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
+    fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+    document.getElementById('lyrics-input').addEventListener('input', convertMidi);
+    document.getElementById('include-lyrics').addEventListener('change', convertMidi);
+    document.getElementById('divisor').addEventListener('change', convertMidi);
+    document.getElementById('octave').addEventListener('change', convertMidi);
+    document.getElementById('condense').addEventListener('change', convertMidi);
+
+    function processFile(file) {
+        hideError(); stopPlayback();
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                lastMidiData = new MidiParser(e.target.result).parse(); lastFileName = file.name;
+                analyzeTrackChannels(lastMidiData); renderTrackList();
+                document.getElementById('player-section').classList.remove('hidden');
+                document.getElementById('track-section').classList.remove('hidden');
+                document.getElementById('lyrics-section').classList.remove('hidden');
+                const ticksPerBeat = lastMidiData.timeDivision || 480; let maxTicks = 0, bpm = 120;
+                for (const track of lastMidiData.tracks) { let ticks = 0; for (const e of track.events) { ticks += e.deltaTime || 0; if (e.type === 'meta' && e.metaType === 0x51 && e.data.length >= 3) bpm = Math.round(60000000 / ((e.data[0] << 16) | (e.data[1] << 8) | e.data[2])); } maxTicks = Math.max(maxTicks, ticks); }
+                totalDuration = maxTicks * (60 / (bpm * ticksPerBeat)); updateTimeDisplay(0, totalDuration); convertMidi();
+            } catch (err) { showError('Error parsing MIDI: ' + err.message); console.error(err); }
+        };
+        reader.onerror = () => showError('Error reading file');
+        reader.readAsArrayBuffer(file);
+    }
+
+    function convertMidi() {
+        if (!lastMidiData) return;
+        try {
+            const divisor = parseInt(document.getElementById('divisor').value), octave = document.getElementById('octave').value, condense = document.getElementById('condense').value;
+            const selectedTracks = getSelectedTracks(), lyrics = document.getElementById('lyrics-input').value, lyricsTrackIdx = parseInt(document.getElementById('lyrics-track').value);
+            if (selectedTracks.length === 0) {
+                document.getElementById('code-output').textContent = '// No tracks selected'; document.getElementById('hex-output').textContent = '';
+                document.getElementById('stats').innerHTML = '<p style="color:#888;">Select at least one track.</p>';
+                document.getElementById('output-section').classList.remove('hidden'); lastNoteTimings = []; updateLyricsPreview(); return;
+            }
+            const song = midiToSong(lastMidiData, divisor, octave, condense, selectedTracks);
+            currentHex = toHexString(encodeSong(song));
+            lastNoteTimings = lyricsTrackIdx >= 0 ? getLyricsTimings(lastMidiData, lyricsTrackIdx, divisor) : [];
+            currentCode = generateCodeWithLyrics(currentHex, lyrics, lastNoteTimings);
+            document.getElementById('hex-output').textContent = currentHex;
+            document.getElementById('code-output').textContent = currentCode;
+            document.getElementById('stats').innerHTML = `<div class="stat"><div class="stat-value">${song.stats.bpm}</div><div class="stat-label">BPM</div></div><div class="stat"><div class="stat-value">${song.stats.measures}</div><div class="stat-label">Measures</div></div><div class="stat"><div class="stat-value">${song.stats.noteCount}</div><div class="stat-label">Notes</div></div><div class="stat"><div class="stat-value">${song.stats.octave}</div><div class="stat-label">Octave</div></div><div class="stat"><div class="stat-value">${midiNoteToName(song.stats.minNote)}-${midiNoteToName(song.stats.maxNote)}</div><div class="stat-label">Range</div></div><div class="stat"><div class="stat-value">${currentHex.length}</div><div class="stat-label">Hex Chars</div></div>`;
+            document.getElementById('output-section').classList.remove('hidden');
+            dropZone.innerHTML = `<p>✅ Loaded: ${lastFileName}</p><p style="color:#888;font-size:14px;">Drop another file to convert</p>`;
+            hideError(); updateLyricsPreview();
+        } catch (err) { showError('Error converting: ' + err.message); console.error(err); }
+    }
+
+    function copyCode() { navigator.clipboard.writeText(currentCode).then(() => alert('Code copied!')).catch(() => { const ta = document.createElement('textarea'); ta.value = currentCode; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('Code copied!'); }); }
+    function copyHex() { navigator.clipboard.writeText(currentHex).then(() => alert('Hex copied!')).catch(() => { const ta = document.createElement('textarea'); ta.value = currentHex; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('Hex copied!'); }); }
+    function downloadCode() { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([currentCode], { type: 'text/plain' })); a.download = 'song.ts'; a.click(); URL.revokeObjectURL(a.href); }
+    </script>
+</body>
+</html>
+
             background: #1a1a2e;
             color: #eee;
         }
