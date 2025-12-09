@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MIDI to MakeCode Arcade Song Converter v1.1</title>
+    <title>MIDI to MakeCode Arcade Song Converter</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -15,7 +15,6 @@
             color: #eee;
         }
         h1 { color: #00d9ff; text-align: center; }
-        h2 { color: #00d9ff; font-size: 16px; margin: 0 0 10px 0; }
         .drop-zone {
             border: 3px dashed #00d9ff;
             border-radius: 12px;
@@ -47,7 +46,7 @@
             color: #00d9ff;
             font-weight: 500;
         }
-        select, input[type="number"] {
+        select, input {
             width: 100%;
             padding: 10px;
             border: none;
@@ -94,7 +93,6 @@
         }
         button:hover { background: #00b8d9; transform: translateY(-1px); }
         button:active { transform: translateY(0); }
-        button:disabled { background: #555; cursor: not-allowed; transform: none; }
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
         .info-text { color: #888; font-size: 13px; margin-top: 10px; }
         .stats {
@@ -114,98 +112,6 @@
         #file-input { display: none; }
         .hidden { display: none; }
         .error { color: #ff6b6b; background: rgba(255,107,107,0.1); padding: 15px; border-radius: 8px; margin: 10px 0; }
-        
-        /* New styles for player and track selection */
-        .player-section {
-            background: #16213e;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .player-controls {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .play-btn { background: #4CAF50; }
-        .play-btn:hover { background: #45a049; }
-        .stop-btn { background: #f44336; }
-        .stop-btn:hover { background: #da190b; }
-        .progress-bar {
-            flex: 1;
-            min-width: 200px;
-            height: 8px;
-            background: #0f3460;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #00d9ff;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
-        .time-display {
-            font-family: monospace;
-            color: #888;
-            min-width: 100px;
-        }
-        
-        .track-section {
-            background: #16213e;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-        .track-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .track-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #0f3460;
-            border-radius: 6px;
-            margin-bottom: 8px;
-        }
-        .track-item:hover {
-            background: #1a4a7a;
-        }
-        .track-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-        .track-info {
-            flex: 1;
-        }
-        .track-name {
-            font-weight: 600;
-            color: #eee;
-        }
-        .track-details {
-            font-size: 12px;
-            color: #888;
-        }
-        .track-preview {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-        .channel-badge {
-            display: inline-block;
-            background: #00d9ff;
-            color: #1a1a2e;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            margin-right: 5px;
-        }
-        .note-range {
-            color: #7dff7d;
-        }
     </style>
 </head>
 <body>
@@ -218,30 +124,6 @@
     </div>
 
     <div id="error-box" class="error hidden"></div>
-
-    <!-- MIDI Player Section -->
-    <div id="player-section" class="player-section hidden">
-        <h2>🎧 Preview MIDI</h2>
-        <div class="player-controls">
-            <button id="play-btn" class="play-btn" onclick="togglePlayback()">▶ Play</button>
-            <button id="stop-btn" class="stop-btn" onclick="stopPlayback()">■ Stop</button>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill"></div>
-            </div>
-            <span class="time-display" id="time-display">0:00 / 0:00</span>
-        </div>
-    </div>
-
-    <!-- Track Selection Section -->
-    <div id="track-section" class="track-section hidden">
-        <h2>🎼 Select Tracks/Channels</h2>
-        <p class="info-text">Choose which tracks to include in the conversion. Uncheck tracks to isolate melodies.</p>
-        <div class="btn-group" style="margin: 10px 0;">
-            <button onclick="selectAllTracks()">Select All</button>
-            <button onclick="selectNoTracks()">Select None</button>
-        </div>
-        <div class="track-list" id="track-list"></div>
-    </div>
 
     <div class="controls">
         <div class="control-group">
@@ -300,7 +182,7 @@
 
     <script>
     // ============================================
-    // Simple MIDI Parser
+    // Simple MIDI Parser (no external dependencies)
     // ============================================
     class MidiParser {
         constructor(arrayBuffer) {
@@ -343,6 +225,7 @@
         }
 
         parse() {
+            // Read header
             const headerChunk = this.readString(4);
             if (headerChunk !== 'MThd') {
                 throw new Error('Invalid MIDI file: missing MThd header');
@@ -355,6 +238,7 @@
 
             const tracks = [];
 
+            // Read tracks
             for (let t = 0; t < numTracks; t++) {
                 const trackChunk = this.readString(4);
                 if (trackChunk !== 'MTrk') {
@@ -365,12 +249,12 @@
                 const trackEnd = this.pos + trackLength;
                 const events = [];
                 let runningStatus = 0;
-                let trackName = `Track ${t + 1}`;
 
                 while (this.pos < trackEnd) {
                     const deltaTime = this.readVarInt();
                     let status = this.readUint8();
 
+                    // Running status
                     if (status < 0x80) {
                         this.pos--;
                         status = runningStatus;
@@ -382,48 +266,56 @@
                     const channel = status & 0x0F;
 
                     if (status === 0xFF) {
+                        // Meta event
                         const metaType = this.readUint8();
                         const metaLength = this.readVarInt();
                         const metaData = [];
                         for (let i = 0; i < metaLength; i++) {
                             metaData.push(this.readUint8());
                         }
-                        // Track name (meta type 0x03)
-                        if (metaType === 0x03) {
-                            trackName = String.fromCharCode(...metaData);
-                        }
                         events.push({ deltaTime, type: 'meta', metaType, data: metaData });
                     } else if (status === 0xF0 || status === 0xF7) {
+                        // SysEx
                         const sysexLength = this.readVarInt();
                         this.pos += sysexLength;
                         events.push({ deltaTime, type: 'sysex' });
                     } else if (eventType === 0x80) {
+                        // Note Off
                         const note = this.readUint8();
                         const velocity = this.readUint8();
                         events.push({ deltaTime, type: 'noteOff', channel, note, velocity });
                     } else if (eventType === 0x90) {
+                        // Note On
                         const note = this.readUint8();
                         const velocity = this.readUint8();
                         events.push({ deltaTime, type: 'noteOn', channel, note, velocity });
                     } else if (eventType === 0xA0) {
+                        // Aftertouch
                         this.pos += 2;
                         events.push({ deltaTime, type: 'aftertouch' });
                     } else if (eventType === 0xB0) {
+                        // Control Change
                         this.pos += 2;
                         events.push({ deltaTime, type: 'controlChange' });
                     } else if (eventType === 0xC0) {
-                        const program = this.readUint8();
-                        events.push({ deltaTime, type: 'programChange', channel, program });
+                        // Program Change
+                        this.pos += 1;
+                        events.push({ deltaTime, type: 'programChange' });
                     } else if (eventType === 0xD0) {
+                        // Channel Pressure
                         this.pos += 1;
                         events.push({ deltaTime, type: 'channelPressure' });
                     } else if (eventType === 0xE0) {
+                        // Pitch Bend
                         this.pos += 2;
                         events.push({ deltaTime, type: 'pitchBend' });
+                    } else {
+                        // Unknown, try to skip
+                        console.warn('Unknown MIDI event:', status.toString(16));
                     }
                 }
 
-                tracks.push({ events, name: trackName, index: t });
+                tracks.push(events);
             }
 
             return { format, numTracks, timeDivision, tracks };
@@ -431,339 +323,9 @@
     }
 
     // ============================================
-    // MIDI Player using Web Audio API
-    // ============================================
-    let audioContext = null;
-    let isPlaying = false;
-    let playbackTimeout = null;
-    let scheduledNotes = [];
-    let playbackStartTime = 0;
-    let totalDuration = 0;
-    let progressInterval = null;
-
-    function initAudio() {
-        if (!audioContext) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioContext.state === 'suspended') {
-            audioContext.resume();
-        }
-    }
-
-    function midiToFreq(midi) {
-        return 440 * Math.pow(2, (midi - 69) / 12);
-    }
-
-    function playNote(freq, startTime, duration, velocity = 100) {
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        
-        const vol = (velocity / 127) * 0.3;
-        gain.gain.setValueAtTime(0, startTime);
-        gain.gain.linearRampToValueAtTime(vol, startTime + 0.01);
-        gain.gain.linearRampToValueAtTime(vol * 0.7, startTime + duration * 0.7);
-        gain.gain.linearRampToValueAtTime(0, startTime + duration);
-        
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        
-        osc.start(startTime);
-        osc.stop(startTime + duration + 0.1);
-        
-        scheduledNotes.push({ osc, gain });
-    }
-
-    function togglePlayback() {
-        if (isPlaying) {
-            pausePlayback();
-        } else {
-            startPlayback();
-        }
-    }
-
-    function startPlayback() {
-        if (!lastMidiData) return;
-        
-        initAudio();
-        stopPlayback();
-        
-        isPlaying = true;
-        document.getElementById('play-btn').textContent = '⏸ Pause';
-        
-        const ticksPerBeat = lastMidiData.timeDivision || 480;
-        let bpm = 120;
-        
-        // Find tempo
-        for (const track of lastMidiData.tracks) {
-            for (const event of track.events) {
-                if (event.type === 'meta' && event.metaType === 0x51 && event.data.length >= 3) {
-                    const tempo = (event.data[0] << 16) | (event.data[1] << 8) | event.data[2];
-                    bpm = Math.round(60000000 / tempo);
-                    break;
-                }
-            }
-        }
-        
-        const secondsPerTick = 60 / (bpm * ticksPerBeat);
-        playbackStartTime = audioContext.currentTime;
-        
-        // Get selected tracks
-        const selectedTracks = getSelectedTracks();
-        
-        // Schedule all notes
-        let maxTime = 0;
-        for (const trackInfo of selectedTracks) {
-            const track = lastMidiData.tracks[trackInfo.trackIndex];
-            let currentTick = 0;
-            const activeNotes = {};
-            
-            for (const event of track.events) {
-                currentTick += event.deltaTime || 0;
-                const time = currentTick * secondsPerTick;
-                
-                if (event.type === 'noteOn' && event.velocity > 0) {
-                    if (trackInfo.channels.includes(event.channel)) {
-                        activeNotes[event.note] = { time, velocity: event.velocity };
-                    }
-                } else if (event.type === 'noteOff' || (event.type === 'noteOn' && event.velocity === 0)) {
-                    if (activeNotes[event.note]) {
-                        const start = activeNotes[event.note];
-                        const duration = Math.max(0.05, time - start.time);
-                        playNote(midiToFreq(event.note), playbackStartTime + start.time, duration, start.velocity);
-                        delete activeNotes[event.note];
-                        maxTime = Math.max(maxTime, time);
-                    }
-                }
-            }
-        }
-        
-        totalDuration = maxTime;
-        
-        // Update progress bar
-        progressInterval = setInterval(updateProgress, 100);
-        
-        // Auto-stop at end
-        playbackTimeout = setTimeout(() => {
-            stopPlayback();
-        }, (totalDuration + 0.5) * 1000);
-    }
-
-    function pausePlayback() {
-        isPlaying = false;
-        document.getElementById('play-btn').textContent = '▶ Play';
-        clearInterval(progressInterval);
-        // Note: Web Audio doesn't easily support pause, so we just stop
-        stopPlayback();
-    }
-
-    function stopPlayback() {
-        isPlaying = false;
-        document.getElementById('play-btn').textContent = '▶ Play';
-        
-        clearTimeout(playbackTimeout);
-        clearInterval(progressInterval);
-        
-        // Stop all scheduled oscillators
-        for (const note of scheduledNotes) {
-            try {
-                note.osc.stop();
-            } catch (e) {}
-        }
-        scheduledNotes = [];
-        
-        document.getElementById('progress-fill').style.width = '0%';
-        updateTimeDisplay(0, totalDuration);
-    }
-
-    function updateProgress() {
-        if (!isPlaying || !audioContext) return;
-        const elapsed = audioContext.currentTime - playbackStartTime;
-        const percent = Math.min(100, (elapsed / totalDuration) * 100);
-        document.getElementById('progress-fill').style.width = percent + '%';
-        updateTimeDisplay(elapsed, totalDuration);
-    }
-
-    function updateTimeDisplay(current, total) {
-        const formatTime = (s) => {
-            const mins = Math.floor(s / 60);
-            const secs = Math.floor(s % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        };
-        document.getElementById('time-display').textContent = `${formatTime(current)} / ${formatTime(total)}`;
-    }
-
-    // ============================================
-    // Track Analysis & Selection
-    // ============================================
-    let trackChannelMap = [];  // [{trackIndex, channels: [0,1,...], name, noteCount, minNote, maxNote}]
-
-    function analyzeTrackChannels(midiData) {
-        trackChannelMap = [];
-        
-        for (let t = 0; t < midiData.tracks.length; t++) {
-            const track = midiData.tracks[t];
-            const channelsInTrack = new Map(); // channel -> {noteCount, minNote, maxNote}
-            
-            for (const event of track.events) {
-                if (event.type === 'noteOn' && event.velocity > 0) {
-                    const ch = event.channel;
-                    if (!channelsInTrack.has(ch)) {
-                        channelsInTrack.set(ch, { noteCount: 0, minNote: 127, maxNote: 0 });
-                    }
-                    const info = channelsInTrack.get(ch);
-                    info.noteCount++;
-                    info.minNote = Math.min(info.minNote, event.note);
-                    info.maxNote = Math.max(info.maxNote, event.note);
-                }
-            }
-            
-            // Create entries for each channel found
-            for (const [channel, info] of channelsInTrack) {
-                if (info.noteCount > 0) {
-                    trackChannelMap.push({
-                        trackIndex: t,
-                        channel: channel,
-                        channels: [channel],
-                        name: track.name || `Track ${t + 1}`,
-                        noteCount: info.noteCount,
-                        minNote: info.minNote,
-                        maxNote: info.maxNote
-                    });
-                }
-            }
-        }
-        
-        return trackChannelMap;
-    }
-
-    function midiNoteToName(midi) {
-        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const octave = Math.floor(midi / 12) - 1;
-        return notes[midi % 12] + octave;
-    }
-
-    function renderTrackList() {
-        const container = document.getElementById('track-list');
-        container.innerHTML = '';
-        
-        if (trackChannelMap.length === 0) {
-            container.innerHTML = '<p style="color: #888;">No note data found in MIDI file.</p>';
-            return;
-        }
-        
-        for (let i = 0; i < trackChannelMap.length; i++) {
-            const tc = trackChannelMap[i];
-            const div = document.createElement('div');
-            div.className = 'track-item';
-            div.innerHTML = `
-                <input type="checkbox" id="track-${i}" checked onchange="convertMidi()">
-                <div class="track-info">
-                    <div class="track-name">${tc.name}</div>
-                    <div class="track-details">
-                        <span class="channel-badge">Ch ${tc.channel + 1}</span>
-                        <span>${tc.noteCount} notes</span> · 
-                        <span class="note-range">${midiNoteToName(tc.minNote)} - ${midiNoteToName(tc.maxNote)}</span>
-                    </div>
-                </div>
-                <button class="track-preview" onclick="previewTrack(${i})">▶ Preview</button>
-            `;
-            container.appendChild(div);
-        }
-    }
-
-    function getSelectedTracks() {
-        const selected = [];
-        for (let i = 0; i < trackChannelMap.length; i++) {
-            const checkbox = document.getElementById(`track-${i}`);
-            if (checkbox && checkbox.checked) {
-                selected.push(trackChannelMap[i]);
-            }
-        }
-        return selected;
-    }
-
-    function selectAllTracks() {
-        for (let i = 0; i < trackChannelMap.length; i++) {
-            const checkbox = document.getElementById(`track-${i}`);
-            if (checkbox) checkbox.checked = true;
-        }
-        convertMidi();
-    }
-
-    function selectNoTracks() {
-        for (let i = 0; i < trackChannelMap.length; i++) {
-            const checkbox = document.getElementById(`track-${i}`);
-            if (checkbox) checkbox.checked = false;
-        }
-        convertMidi();
-    }
-
-    function previewTrack(index) {
-        if (!lastMidiData) return;
-        
-        initAudio();
-        stopPlayback();
-        
-        const tc = trackChannelMap[index];
-        const track = lastMidiData.tracks[tc.trackIndex];
-        const ticksPerBeat = lastMidiData.timeDivision || 480;
-        
-        // Find tempo
-        let bpm = 120;
-        for (const t of lastMidiData.tracks) {
-            for (const event of t.events) {
-                if (event.type === 'meta' && event.metaType === 0x51 && event.data.length >= 3) {
-                    const tempo = (event.data[0] << 16) | (event.data[1] << 8) | event.data[2];
-                    bpm = Math.round(60000000 / tempo);
-                    break;
-                }
-            }
-        }
-        
-        const secondsPerTick = 60 / (bpm * ticksPerBeat);
-        const startTime = audioContext.currentTime;
-        
-        let currentTick = 0;
-        const activeNotes = {};
-        let maxTime = 0;
-        
-        for (const event of track.events) {
-            currentTick += event.deltaTime || 0;
-            const time = currentTick * secondsPerTick;
-            
-            // Limit preview to 10 seconds
-            if (time > 10) break;
-            
-            if (event.type === 'noteOn' && event.velocity > 0 && event.channel === tc.channel) {
-                activeNotes[event.note] = { time, velocity: event.velocity };
-            } else if ((event.type === 'noteOff' || (event.type === 'noteOn' && event.velocity === 0)) && event.channel === tc.channel) {
-                if (activeNotes[event.note]) {
-                    const start = activeNotes[event.note];
-                    const duration = Math.max(0.05, time - start.time);
-                    playNote(midiToFreq(event.note), startTime + start.time, duration, start.velocity);
-                    delete activeNotes[event.note];
-                    maxTime = Math.max(maxTime, time);
-                }
-            }
-        }
-        
-        isPlaying = true;
-        document.getElementById('play-btn').textContent = '⏸ Pause';
-        totalDuration = Math.min(maxTime, 10);
-        playbackStartTime = startTime;
-        progressInterval = setInterval(updateProgress, 100);
-        
-        playbackTimeout = setTimeout(() => {
-            stopPlayback();
-        }, (totalDuration + 0.5) * 1000);
-    }
-
-    // ============================================
     // MakeCode Song Encoder
     // ============================================
+    // Default instrument settings (piano-like)
     const DEFAULT_INSTRUMENT = { waveShape: 1, octave: 5, attack: 10, decay: 100, sustain: 500, release: 100 };
 
     function encode16bit(value) {
@@ -772,17 +334,32 @@
 
     function encodeInstrument(preset) {
         const data = [];
+        
+        // Byte 0: Wave shape
         data.push(preset.waveShape || 1);
+        
+        // Bytes 1-8: Amp envelope times (4 x 16-bit LE)
         data.push(...encode16bit(preset.attack || 500));
         data.push(...encode16bit(preset.decay || 100));
         data.push(...encode16bit(preset.sustain || 255));
         data.push(...encode16bit(preset.release || 500));
+        
+        // Bytes 9-12: Amp envelope volumes (matching MakeCode default)
         data.push(0, 4, 0, 0);
+        
+        // Bytes 13-23: Freq envelope data (11 bytes of zeros)
         for (let i = 0; i < 11; i++) data.push(0);
+        
+        // Byte 24: Octave
         data.push(preset.octave || 5);
+        
+        // Bytes 25-26: padding
         data.push(0, 0);
+        
+        // Byte 27: trailing byte (matches MakeCode)
         data.push(4);
-        return data;
+        
+        return data;  // 28 bytes total
     }
 
     function encodeNoteEvent(event, octave) {
@@ -790,10 +367,13 @@
         data.push(...encode16bit(event.startTick));
         data.push(...encode16bit(event.endTick));
         data.push(event.notes.length);
+        
+        // Formula: stored = MIDI - (octave-2)*12 + 1
+        // This is 1-indexed (C = 1, not 0)
         const octaveOffset = (octave - 2) * 12;
         for (const note of event.notes) {
             const adjustedNote = (note - octaveOffset + 1) & 0x3F;
-            data.push(adjustedNote);
+            data.push(adjustedNote); // Just the note, no enharmonic byte!
         }
         return data;
     }
@@ -801,16 +381,22 @@
     function encodeTrack(track) {
         const data = [];
         data.push(track.id);
-        data.push(0x00);
+        data.push(0x00);  // Extra byte (flags?) - MakeCode format has this
+        
         const instData = encodeInstrument(track.instrument);
         data.push(...encode16bit(instData.length));
         data.push(...instData);
+        
+        // Sort notes by start tick
         track.notes.sort((a, b) => a.startTick - b.startTick);
+        
+        // Calculate total note bytes for the count field
         let noteBytes = 0;
         for (const note of track.notes) {
-            noteBytes += 5 + note.notes.length;
+            noteBytes += 5 + note.notes.length; // 2+2+1 + notes
         }
         data.push(...encode16bit(noteBytes));
+        
         for (const note of track.notes) {
             data.push(...encodeNoteEvent(note, track.instrument.octave));
         }
@@ -819,12 +405,13 @@
 
     function encodeSong(song) {
         const data = [];
-        data.push(0x00);
+        data.push(0x00); // version
         data.push(...encode16bit(song.bpm));
         data.push(song.beatsPerMeasure);
         data.push(song.ticksPerBeat);
         data.push(Math.min(song.measures, 255));
         data.push(song.tracks.length);
+        
         for (const track of song.tracks) {
             data.push(...encodeTrack(track));
         }
@@ -835,6 +422,7 @@
         return data.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
+    // Convert MIDI note number to note name (e.g., 60 -> "C4")
     function midiToNoteName(midi) {
         if (midi < 0 || midi > 127) return '?';
         const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -843,13 +431,18 @@
         return note + octave;
     }
 
+    // Shift a note by octaves until it fits within the target range
     function condenseNote(note, minNote, maxNote) {
-        while (note < minNote) note += 12;
-        while (note > maxNote) note -= 12;
+        while (note < minNote) {
+            note += 12;
+        }
+        while (note > maxNote) {
+            note -= 12;
+        }
         return note;
     }
 
-    function midiToSong(midiData, divisor, octaveOverride, condenseRange, selectedTracks) {
+    function midiToSong(midiData, divisor, octaveOverride, condenseRange) {
         const preset = { ...DEFAULT_INSTRUMENT };
         const ticksPerBeat = midiData.timeDivision || 480;
         const mcTicksPerBeat = 8;
@@ -859,41 +452,49 @@
         const noteEvents = [];
         const activeNotes = {};
         
-        // Process only selected tracks/channels
-        for (const tc of selectedTracks) {
-            const track = midiData.tracks[tc.trackIndex];
+        // Process all tracks
+        for (let trackIdx = 0; trackIdx < midiData.tracks.length; trackIdx++) {
+            const track = midiData.tracks[trackIdx];
             let currentTick = 0;
             
-            for (const event of track.events) {
+            for (const event of track) {
                 currentTick += event.deltaTime || 0;
                 
+                // Tempo meta event (type 0x51)
                 if (event.type === 'meta' && event.metaType === 0x51 && event.data.length >= 3) {
                     const tempo = (event.data[0] << 16) | (event.data[1] << 8) | event.data[2];
                     bpm = Math.round(60000000 / tempo);
                 }
                 
-                if (event.type === 'noteOn' && event.velocity > 0 && tc.channels.includes(event.channel)) {
+                // Note on
+                if (event.type === 'noteOn' && event.velocity > 0) {
                     const note = event.note;
                     const mcTick = Math.floor((currentTick / ticksPerBeat) * mcTicksPerBeat / divisor);
-                    activeNotes[`${tc.trackIndex}-${tc.channel}-${note}`] = mcTick;
+                    activeNotes[`${trackIdx}-${note}`] = mcTick;
                 }
                 
-                if ((event.type === 'noteOff' || (event.type === 'noteOn' && event.velocity === 0)) && tc.channels.includes(event.channel)) {
+                // Note off
+                if (event.type === 'noteOff' || (event.type === 'noteOn' && event.velocity === 0)) {
                     const note = event.note;
-                    const key = `${tc.trackIndex}-${tc.channel}-${note}`;
+                    const key = `${trackIdx}-${note}`;
                     if (activeNotes[key] !== undefined) {
                         const startTick = activeNotes[key];
                         const mcTick = Math.floor((currentTick / ticksPerBeat) * mcTicksPerBeat / divisor);
                         delete activeNotes[key];
                         
                         if (mcTick > startTick) {
+                            // Apply note range condensing if enabled
                             let finalNote = note;
                             if (condenseRange !== 'none') {
                                 const octaves = parseInt(condenseRange);
+                                // Define ranges centered around middle C (60)
+                                // 4 octaves: C2(36) to B5(83)
+                                // 3 octaves: C3(48) to B5(83)  
+                                // 2 octaves: C4(60) to B5(83)
                                 const ranges = {
-                                    4: { min: 36, max: 83 },
-                                    3: { min: 48, max: 83 },
-                                    2: { min: 60, max: 83 }
+                                    4: { min: 36, max: 83 },  // C2 to B5
+                                    3: { min: 48, max: 83 },  // C3 to B5
+                                    2: { min: 60, max: 83 }   // C4 to B5
                                 };
                                 const range = ranges[octaves];
                                 finalNote = condenseNote(note, range.min, range.max);
@@ -912,9 +513,11 @@
             }
         }
         
+        // Calculate measures
         const totalBeats = (totalTicks / ticksPerBeat) / divisor;
         const measures = Math.min(Math.ceil(totalBeats / 4) + 1, 255);
         
+        // Determine octave
         let octave = preset.octave;
         if (octaveOverride && octaveOverride !== 'auto') {
             octave = parseInt(octaveOverride);
@@ -924,13 +527,24 @@
             const maxNote = Math.max(...allNotes);
             const avgNote = allNotes.reduce((a, b) => a + b, 0) / allNotes.length;
             
-            if (avgNote < 48) octave = 4;
-            else if (avgNote > 84) octave = 6;
-            else octave = 5;
+            // For octave O, valid MIDI range is (O-2)*12+1 to (O-2)*12+63
+            // Octave 5 covers MIDI 36-98 (C2 to D7) - good for most music
+            // Octave 4 covers MIDI 24-86 (C1 to D6) - lower range
+            // Octave 6 covers MIDI 48-110 (C3 to D8) - higher range
+            
+            // Pick octave that best centers the note range
+            if (avgNote < 48) {
+                octave = 4;  // Low notes
+            } else if (avgNote > 84) {
+                octave = 6;  // High notes
+            } else {
+                octave = 5;  // Middle C range (default)
+            }
         }
         
         preset.octave = octave;
         
+        // Calculate note range for stats
         let minNote = 127, maxNote = 0;
         if (noteEvents.length > 0) {
             for (const ev of noteEvents) {
@@ -968,8 +582,6 @@
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const outputSection = document.getElementById('output-section');
-    const playerSection = document.getElementById('player-section');
-    const trackSection = document.getElementById('track-section');
     const errorBox = document.getElementById('error-box');
     
     let currentHex = '';
@@ -1011,41 +623,12 @@
 
     function processFile(file) {
         hideError();
-        stopPlayback();
-        
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const parser = new MidiParser(e.target.result);
                 lastMidiData = parser.parse();
                 lastFileName = file.name;
-                
-                // Analyze tracks
-                analyzeTrackChannels(lastMidiData);
-                renderTrackList();
-                
-                // Show player and track sections
-                playerSection.classList.remove('hidden');
-                trackSection.classList.remove('hidden');
-                
-                // Calculate total duration for display
-                const ticksPerBeat = lastMidiData.timeDivision || 480;
-                let maxTicks = 0;
-                let bpm = 120;
-                for (const track of lastMidiData.tracks) {
-                    let ticks = 0;
-                    for (const event of track.events) {
-                        ticks += event.deltaTime || 0;
-                        if (event.type === 'meta' && event.metaType === 0x51 && event.data.length >= 3) {
-                            const tempo = (event.data[0] << 16) | (event.data[1] << 8) | event.data[2];
-                            bpm = Math.round(60000000 / tempo);
-                        }
-                    }
-                    maxTicks = Math.max(maxTicks, ticks);
-                }
-                totalDuration = maxTicks * (60 / (bpm * ticksPerBeat));
-                updateTimeDisplay(0, totalDuration);
-                
                 convertMidi();
             } catch (err) {
                 showError('Error parsing MIDI file: ' + err.message);
@@ -1065,21 +648,13 @@
             const divisor = parseInt(document.getElementById('divisor').value);
             const octave = document.getElementById('octave').value;
             const condense = document.getElementById('condense').value;
-            const selectedTracks = getSelectedTracks();
             
-            if (selectedTracks.length === 0) {
-                document.getElementById('code-output').textContent = '// No tracks selected';
-                document.getElementById('hex-output').textContent = '';
-                document.getElementById('stats').innerHTML = '<p style="color: #888;">Select at least one track to convert.</p>';
-                outputSection.classList.remove('hidden');
-                return;
-            }
-            
-            const song = midiToSong(lastMidiData, divisor, octave, condense, selectedTracks);
+            const song = midiToSong(lastMidiData, divisor, octave, condense);
             const encoded = encodeSong(song);
             currentHex = toHexString(encoded);
             currentCode = `music.play(music.createSong(hex\`${currentHex}\`), music.PlaybackMode.UntilDone)`;
             
+            // Update UI
             document.getElementById('hex-output').textContent = currentHex;
             document.getElementById('code-output').textContent = currentCode;
             
@@ -1093,7 +668,7 @@
             `;
             
             outputSection.classList.remove('hidden');
-            dropZone.innerHTML = `<p>✅ Loaded: ${lastFileName}</p><p style="color: #888; font-size: 14px;">Drop another file to convert</p>`;
+            dropZone.innerHTML = `<p>✅ Converted: ${lastFileName}</p><p style="color: #888; font-size: 14px;">Drop another file to convert</p>`;
             hideError();
         } catch (err) {
             showError('Error converting MIDI: ' + err.message);
@@ -1110,6 +685,7 @@
         navigator.clipboard.writeText(currentCode).then(() => {
             alert('Code copied to clipboard!');
         }).catch(() => {
+            // Fallback
             const ta = document.createElement('textarea');
             ta.value = currentCode;
             document.body.appendChild(ta);
