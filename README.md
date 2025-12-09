@@ -1,4 +1,5 @@
-# MIDI to MakeCode Arcade Converter
+# MIDI to MakeCode Arcade Converter V1.2 
+## Now with Lyrics Sync!
 
 A browser-based tool that converts MIDI files to MakeCode Arcade's song hex format for use with the `music.play()` block.
 
